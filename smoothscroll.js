@@ -1,156 +1,232 @@
-(function () {
+(function(w, doc, undefined) {
   'use strict';
 
-  if ('scrollBehavior' in document.documentElement.style) return;
+  /*
+   * alias
+   * w: window global object
+   * doc: document
+   * undefined: undefined
+   */
 
-  // TODO: make this intelligent according to distance.
-  var SCROLL_TIME = 300;
-
-  var originalScrollTo = window.scrollTo;
-  var originalScrollBy = window.scrollBy;
-  var originalScrollIntoView = Element.prototype.scrollIntoView;
-
-  // store generally accessible frame id in case a new scroll animation is triggered before the previous
-  // completes, we can cancel the previous scroll.
-  var frame;
-
-  var startY, startX, endX, endY;
-
-  function now() {
-    return window.performance !== undefined && window.performance.now !== undefined ? window.performance.now() : Date.now !== undefined ? Date.now() : new Date().getTime();
+  // return if scrollBehavior is supported
+  if ('scrollBehavior' in doc.documentElement.style) {
+    return;
   }
 
-  // ease-in-out
+  var SCROLL_TIME = 300,
+      // legacy scrolling methods
+      originalScrollTo = w.scrollTo,
+      originalScrollBy = w.scrollBy,
+      originalScrollIntoView = w.Element.prototype.scrollIntoView,
+      // global frame variable to avoid collision
+      frame;
+
+  /*
+   * returns actual time
+   * @method now
+   * @returns {Date}
+   */
+  function now() {
+    // if performance object supported return now, if not fallback to date object
+    if (w.performance !== undefined && w.performance.now !== undefined) {
+      return w.performance.now();
+    }
+
+    return Date.now();
+  }
+
+  /*
+   * returns result of applying ease math function to a number
+   * @method ease
+   * @param {Number} k
+   * @returns {Number}
+   */
   function ease(k) {
     return 0.5 * (1 - Math.cos(Math.PI * k));
   }
 
+  /*
+   * returns true if first argument is an options object and contains a smooth behavior
+   * @method shouldBailOut
+   * @param {Number|Object} x
+   * @returns {Boolean}
+   */
   function shouldBailOut(x) {
-    return typeof x === 'undefined' || x.behavior !== 'smooth';
-  }
-
-  function smoothScroll(x, y) {
-    var sx = window.pageXOffset;
-    var sy = window.pageYOffset;
-
-    if (typeof startX === 'undefined') {
-      startX = sx;
-      startY = sy;
-      endX = x;
-      endY = y;
+    if (typeof x !== 'object' || x.behavior === undefined || x.behavior === 'auto' || x.behavior === 'instant') {
+      // first arg not an object, or behavior is auto or undefined
+      return true;
+    } else if (x.behavior === 'smooth') {
+      // first argument is an object and behavior is smooth
+      return false;
     }
-
-    var startTime = now();
-
-    // TODO: look into polyfilling scroll-behavior: smooth css property
-    var step = function() {
-      var time = now();
-      var elapsed = (time - startTime) / SCROLL_TIME;
-      elapsed = elapsed > 1 ? 1 : elapsed;
-
-      var value = ease(elapsed);
-      var cx = sx + ( x - sx ) * value;
-      var cy = sy + ( y - sy ) * value;
-
-      originalScrollTo(cx, cy);
-
-      if (cx === endX && cy === endY) {
-        startX = startY = endX = endY = undefined;
-        return;
-      }
-
-      frame = requestAnimationFrame(step);
-    };
-
-    if (frame) cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(step);
+    // behavior not supported, throw error as Firefox implementation 37.0.2
+    throw new TypeError(x.behavior + ' is not a valid value for enumeration ScrollBehavior');
   }
 
-  window.scroll = window.scrollTo = function(x, y, scrollOptions) {
-    if (shouldBailOut(scrollOptions))
-      return originalScrollTo(x, y);
-    return smoothScroll(x, y);
-  };
-
-  window.scrollBy = function(x, y, scrollOptions) {
-    if (shouldBailOut(scrollOptions))
-      return originalScrollBy(x, y);
-
-    var sx = window.pageXOffset;
-    var sy = window.pageYOffset;
-
-    return smoothScroll(x + sx, y + sy);
-  };
-
-  var elementRects, scrollableParent;
+  /*
+   * changes scroll position inside an element
+   * @method scrollElement
+   * @params {Node} el
+   * @params {Number} x
+   * @params {Number} y
+   */
   function scrollElement(el, x, y) {
     el.scrollTop = y;
     el.scrollLeft = x;
   }
 
-  function scroll(el, endCoords) {
-    var sx = el.scrollLeft;
-    var sy = el.scrollTop;
-
-    var x = endCoords.left;
-    var y = endCoords.top;
-
-    if (typeof startX === 'undefined') {
-      startX = sx;
-      startY = sy;
-      endX = endCoords.left;
-      endY = endCoords.top;
+  /*
+   * finds scrollable parent of an element
+   * @method findScrollableParent
+   * @params {Node} el
+   */
+  function findScrollableParent(el) {
+    if (el.clientHeight < el.scrollHeight ||
+        el.clientWidth < el.scrollWidth) {
+      return el;
     }
 
-    var startTime = now();
+    // only continue scaling if parentNode is valid
+    if (el.parentNode.parentNode) {
+      return findScrollableParent(el.parentNode);
+    }
+  }
 
-    var step = function() {
-      var time = now();
-      var elapsed = (time - startTime) / SCROLL_TIME;
+  /*
+   * scrolls window with a smooth behavior
+   * @method smoothScroll
+   * @params {Number} x
+   * @params {Number} y
+   */
+  function smoothScroll(x, y) {
+    var sx = w.scrollX || w.pageXOffset,
+        sy = w.scrollY || w.pageYOffset,
+        startTime = now();
+
+    // cancel frame is there is an scroll event happening
+    if (frame) {
+      w.cancelAnimationFrame(frame);
+    }
+
+    frame = w.requestAnimationFrame(step);
+
+    // scroll looping over a frame
+    function step() {
+      var time = now(), value, cx, cy,
+          elapsed = (time - startTime) / SCROLL_TIME;
+
+      // avoid elapsed times higher than one
       elapsed = elapsed > 1 ? 1 : elapsed;
 
-      var value = ease(elapsed);
-      var cx = sx + ( x - sx ) * value;
-      var cy = sy + ( y - sy ) * value;
+      value = ease(elapsed);
+      cx = sx + (x - sx) * value;
+      cy = sy + (y - sy) * value;
 
-      scrollElement(el, cx, cy);
+      originalScrollTo(cx, cy);
 
-      if (cx === endX && cy === endY) {
-        startX = startY = endX = endY = undefined;
+      // return if end points have been reached
+      if (cx === x && cy === y) {
+        sx = sy = startTime = null;
+        w.cancelAnimationFrame(frame);
         return;
       }
 
-      frame = requestAnimationFrame(step);
-    };
-
-    if (frame) cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(step);
+      frame = w.requestAnimationFrame(step);
+    }
   }
 
-  function findScrollableParent(el) {
-    if (el.clientHeight < el.scrollHeight ||
-        el.clientWidth < el.scrollWidth)
-      return el;
-    return findScrollableParent(el.parentNode);
+  /*
+   * scrolls inside an element with a smooth behavior
+   * @method smoothScrollElement
+   * @params {Node} el
+   * @params {Object} endCoords
+   */
+  function scrollSmoothElement(el, endCoords) {
+    var sx = el.scrollLeft,
+        sy = el.scrollTop,
+        x = endCoords.left,
+        y = endCoords.top,
+        startTime = now();
+
+    // cancel frame is there is an scroll event happening
+    if (frame) {
+      w.cancelAnimationFrame(frame);
+    }
+
+    frame = w.requestAnimationFrame(step);
+
+    // scroll looping over a frame
+    function step() {
+      var time = now(), value, cx, cy,
+          elapsed = (time - startTime) / SCROLL_TIME;
+
+      // avoid elapsed times higher than one
+      elapsed = elapsed > 1 ? 1 : elapsed;
+
+      value = ease(elapsed);
+      cx = sx + (x - sx) * value;
+      cy = sy + (y - sy) * value;
+
+      scrollElement(el, cx, cy);
+
+      // return if end points have been reached
+      if (cx === x && cy === y) {
+        sx = sy = startTime = null;
+        w.cancelAnimationFrame(frame);
+        return;
+      }
+
+      frame = w.requestAnimationFrame(step);
+    }
   }
 
-  var origElementScrollIntoView = Element.prototype.scrollIntoView;
+  // ORIGINAL METHODS OVERRIDES
+  // window.scroll and window.scrollTo
+  w.scroll = w.scrollTo = function() {
+    if (shouldBailOut(arguments[0])) {
+      // if first argument is an object with auto behavior send left and top coordenates
+      return originalScrollTo.call(w, arguments[0].left || arguments[0], arguments[0].top || arguments[1]);
+    }
 
-  Element.prototype.scrollIntoView = function(toTop, scrollOptions) {
-    if (shouldBailOut(scrollOptions)) return origElementScrollIntoView.call(this, toTop);
-
-    scrollableParent = findScrollableParent(this);
-    var style = window.getComputedStyle(scrollableParent, null);
-    var paddingLeft = parseInt(style.getPropertyValue('padding-left'), 10);
-    var paddingTop = parseInt(style.getPropertyValue('padding-top'), 10);
-
-    elementRects = {
-      top: this.offsetTop - (paddingTop * 2),
-      left: this.offsetLeft - (paddingLeft * 2)
-    };
-
-    return scroll(scrollableParent, elementRects);
+    return smoothScroll.call(w, ~~arguments[0].left, ~~arguments[0].top);
   };
 
-}());
+  // window.scrollBy
+  w.scrollBy = function() {
+    if (shouldBailOut(arguments[0])) {
+      // if first argument is an object with auto behavior send left and top coordenates
+      return originalScrollBy.call(w, arguments[0].left || arguments[0], arguments[0].top || arguments[1]);
+    }
 
+    var sx = w.scrollX || w.pageXOffset,
+        sy = w.scrollY || w.pageYOffset;
+
+    return smoothScroll(~~arguments[0].left + sx, ~~arguments[0].top + sy);
+  };
+
+  // Element.scrollIntoView
+  Element.prototype.scrollIntoView = function() {
+    var elementRects, paddingLeft, paddingTop, ret, scrollableParent, style;
+
+    if (shouldBailOut(arguments[0])) {
+      return originalScrollIntoView.call(this, arguments[0] || true);
+    }
+
+    scrollableParent = findScrollableParent(this);
+
+    if (scrollableParent) {
+      style = w.getComputedStyle(scrollableParent, null);
+      paddingLeft = parseInt(style.getPropertyValue('padding-left'), 10);
+      paddingTop = parseInt(style.getPropertyValue('padding-top'), 10);
+      elementRects = {
+        top: this.offsetTop - paddingTop * 2,
+        left: this.offsetLeft - paddingLeft * 2
+      };
+
+      ret = scrollSmoothElement(scrollableParent, elementRects);
+    }
+
+    return ret;
+  };
+
+}(window, document));

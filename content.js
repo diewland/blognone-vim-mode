@@ -43,11 +43,11 @@ $('body').keypress(function(evt){
     }
     else if(evt.which == KEY_DOT){ // top
         CURSOR = 0;
-        window.scrollTo(0, 0, { behavior: 'smooth' });
+        window.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
     }
     else if(evt.which == KEY_G){ // bottom
         CURSOR = $('.node').length - 1;
-        window.scrollTo(0, $('.node').last().offset().top, { behavior: 'smooth' })
+        window.scrollTo({ left: 0, top: $('.node').last().offset().top, behavior: 'smooth' });
     }
     else if(evt.which == KEY_O){ // open link window
         window.open($('.node.active .node-readmore a')[0].href);
@@ -89,10 +89,10 @@ $('body').keypress(function(evt){
     //
     if((evt.which == KEY_J)&&(rel_offset + 100 > win_height)){ // close to end
         // console.log('down', abs_offset, abs_offset-50, 'x');
-        window.scrollTo(0, abs_offset - 50, { behavior: 'smooth' });
+        window.scrollTo({ left: 0, top: abs_offset - 50, behavior: 'smooth' });
     }
     else if((evt.which == KEY_K)&&(rel_offset < 50)){ // close to top
         // console.log('up', abs_offset, win_height, abs_offset - (win_height/2), 'x');
-        window.scrollTo(0, abs_offset - (win_height/2), { behavior: 'smooth' });
+        window.scrollTo({ left: 0, top: abs_offset - (win_height/2), behavior: 'smooth' });
     }
 });
