@@ -13,6 +13,7 @@ var KEY_L = 108;
 var KEY_O = 111;
 var KEY_P = 112;
 var KEY_R = 114;
+var KEY_T = 116;
 
 var CODE_ESC = 27;
 
@@ -75,6 +76,10 @@ function handle_list_screen(evt){
         var url = 'https://plus.google.com/share?url=' + $('.node.active .node-readmore a')[0].href;
         window.open(url, 'gplus', "height=500,width=500,left=600,top=200");
     }
+    else if(evt.which == KEY_T){ // tweet
+        var url = 'https://twitter.com/intent/tweet?text=' + $('.node.active .node-readmore a')[0].href;
+        window.open(url, 'tweet', "height=250,width=500,left=600,top=200");
+    }
     else if(evt.which == KEY_QUES){ // help
         var msg = ''
                 + '=== CURSOR ===\n'
@@ -91,6 +96,7 @@ function handle_list_screen(evt){
                 + 'R - Refresh\n'
                 + 'O - Open in new window\n'
                 + 'P - Share to Google+\n'
+                + 'T - Tweet\n'
                 ;
         alert(msg);
     }
@@ -156,6 +162,10 @@ function handle_node_screen(evt){
         var url = 'https://plus.google.com/share?url=' + location.href;
         window.open(url, 'gplus', "height=500,width=500,left=600,top=200");
     }
+    else if(evt.which == KEY_T){ // tweet
+        var url = 'https://twitter.com/intent/tweet?text=' + location.href;
+        window.open(url, 'tweet', "height=250,width=500,left=600,top=200");
+    }
     else if(evt.which == KEY_QUES){ // help
         var msg = ''
                 + '=== CURSOR ===\n'
@@ -170,6 +180,7 @@ function handle_node_screen(evt){
                 // + 'C - Add new comment\n'
                 + 'R - Reply\n'
                 + 'P - Share to Google+\n'
+                + 'T - Tweet\n'
                 ;
         alert(msg);
     }
