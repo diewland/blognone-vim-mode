@@ -1,8 +1,7 @@
 {
     "name": "Blognone/vim-mode",
     "description": "Vim support for Blognone",
-    "version": "0.5",
-    "permissions": [ "tabs","<all_urls>" ],
+    "version": "0.6",
     "icons": { "128": "icon_128.png" },
     "content_scripts": [
         {
@@ -21,5 +20,5 @@
         "run_at":   "document_end"
         }
     ], 
-    "manifest_version":2
+    "manifest_version":3
 }
